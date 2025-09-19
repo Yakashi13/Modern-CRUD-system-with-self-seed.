@@ -16,6 +16,7 @@ This project comes with a **self-seeding mechanism** 🪴 that auto-feeds initia
 - 📱 **Responsive design** for desktop & mobile  
 - 🎨 Simple but modern UI — easy to customize for your projects  
 
+⚠️ NOTE: LINK THE "JS" AND "CSS" BEFORE USE. I ALREADY DROPPED THEM SO MAKE SURE TO LINK THEM ⚠️
 ---
 
 ## 🚀 Use Cases
@@ -26,6 +27,7 @@ This project is great for:
 - 🧑‍💻 **Frontend devs** looking for a base CRUD template  
 - 🧪 Quick prototyping without setting up servers or databases  
 
+⚠️⚠️
 ---
 
 ## 🛠️ Tech Stack
