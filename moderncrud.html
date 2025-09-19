@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MODER CRUD SYSTEM</title>
+  <meta name="description" content="Simple, responsive CRUD system. Data resets on refresh. Single-page HTML/CSS/JS made by yakashi" />
+
+</head>
+<body>
+  <div class="container">
+    <nav class="nav">
+      <div class="brand"><span class="dot"></span> CRUD System</div>
+      <div class="actions">
+        <button class="btn ghost" id="seedBtn" title="Load sample data">Seed</button>
+        <button class="btn danger" id="clearAllBtn">Clear All</button>
+        <button class="btn accent" id="addBtn">+ New</button>
+      </div>
+    </nav>
+
+    <section class="toolbar">
+      <div class="search">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 21L16.65 16.65M19 11.5C19 15.6421 15.6421 19 11.5 19C7.35786 19 4 15.6421 4 11.5C4 7.35786 7.35786 4 11.5 4C15.6421 4 19 7.35786 19 11.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <input id="search" type="search" placeholder="Search by name, email, role…" />
+      </div>
+      <select id="roleFilter" class="btn" aria-label="Filter by role"><option value="">All Roles</option><option>Admin</option><option>Editor</option><option>Viewer</option></select>
+      <button id="exportBtn" class="btn" title="Export current view as JSON (in-memory)">Export JSON</button>
+    </section>
+
+    <section class="card">
+      <div class="table-wrap">
+        <table id="table" aria-describedby="subtitle">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th class="hide-sm">Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="6" class="empty">No records yet. Click <b>+ New</b> to create one ✨</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <p id="subtitle" class="muted" style="margin-top:10px">Data lives only in memory and <span class="mono">resets on refresh</span>.</p>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <dialog class="modal" id="modal">
+    <form id="form" method="dialog">
+      <header>
+        <strong id="modalTitle">New Record</strong>
+        <button class="icon-btn" value="cancel" aria-label="Close" formnovalidate>&times;</button>
+      </header>
+      <div class="body">
+        <input type="hidden" id="id" />
+        <div class="field"><label for="name">Name</label><input id="name" required placeholder="Jane Doe" /></div>
+        <div class="field"><label for="email">Email</label><input id="email" type="email" required placeholder="jane@example.com" /></div>
+        <div class="field"><label for="role">Role</label>
+          <select id="role" required>
+            <option value="" disabled selected>Select role…</option>
+            <option>Admin</option>
+            <option>Editor</option>
+            <option>Viewer</option>
+          </select>
+        </div>
+        <div class="field"><label for="status">Status</label>
+          <select id="status" required>
+            <option>Active</option>
+            <option>Invited</option>
+            <option>Suspended</option>
+          </select>
+        </div>
+      </div>
+      <footer>
+        <button class="btn" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn accent" id="saveBtn" value="default">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  
+  <footer style="text-align:center; padding:1rem;">
+    Made by <a href="index.html">Yakashi</a>
+  </footer>
+
+  <script>
+    // In-memory store (resets on refresh)
+    const store = {
+      data: [],
+      nextId: 1
+    };
+
+    // Elements
+    const tbody = document.getElementById('tbody');
+    const search = document.getElementById('search');
+    const roleFilter = document.getElementById('roleFilter');
+    const addBtn = document.getElementById('addBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const seedBtn = document.getElementById('seedBtn');
+    const exportBtn = document.getElementById('exportBtn');
+
+    const modal = document.getElementById('modal');
+    const form = document.getElementById('form');
+    const idInput = document.getElementById('id');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const roleInput = document.getElementById('role');
+    const statusInput = document.getElementById('status');
+    const modalTitle = document.getElementById('modalTitle');
+
+    const toastEl = document.getElementById('toast');
+
+    function toast(msg){
+      toastEl.textContent = msg;
+      toastEl.style.display = 'block';
+      clearTimeout(toastEl._t);
+      toastEl._t = setTimeout(()=> toastEl.style.display='none', 1800);
+    }
+
+    function openModal(mode='create', row=null){
+      form.reset();
+      idInput.value = '';
+      if(mode === 'edit' && row){
+        modalTitle.textContent = 'Edit Record';
+        idInput.value = row.id;
+        nameInput.value = row.name;
+        emailInput.value = row.email;
+        roleInput.value = row.role;
+        statusInput.value = row.status;
+      } else {
+        modalTitle.textContent = 'New Record';
+      }
+      modal.showModal();
+      setTimeout(()=> nameInput.focus(), 50);
+    }
+
+    // Render
+    function render(){
+      const q = search.value.trim().toLowerCase();
+      const rf = roleFilter.value;
+
+      const filtered = store.data.filter(r => {
+        const matchesSearch = !q || [r.name, r.email, r.role].some(x => String(x).toLowerCase().includes(q));
+        const matchesRole = !rf || r.role === rf;
+        return matchesSearch && matchesRole;
+      });
+
+      if(!filtered.length){
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">No matching records. Try clearing filters.</td></tr>`;
+        return;
+      }
+
+      const rows = filtered.map(r => `
+        <tr>
+          <td><strong>${escapeHtml(r.name)}</strong></td>
+          <td class="mono">${escapeHtml(r.email)}</td>
+          <td>${escapeHtml(r.role)}</td>
+          <td><span class="pill ${r.status === 'Active' ? 'ok' : r.status === 'Suspended' ? 'warn' : ''}">${escapeHtml(r.status)}</span></td>
+          <td class="hide-sm mono">${new Date(r.created).toLocaleDateString()}</td>
+          <td>
+            <div class="row-actions">
+              <button class="icon-btn" title="Edit" data-action="edit" data-id="${r.id}">✏️</button>
+              <button class="icon-btn" title="Delete" data-action="delete" data-id="${r.id}">🗑️</button>
+
+</body>
+</html>
